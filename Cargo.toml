@@ -1,0 +1,12 @@
+[package]
+name = "osm_area_extractor_rs"
+version = "0.1.0"
+authors = ["Filip Krumpe <filip.krumpe@fmi.uni-stuttgart.de>"]
+edition = "2018"
+
+[lib]
+name = "library"
+path = "src/lib.rs"
+
+[dependencies]
+osmpbfreader = "0.12.0"

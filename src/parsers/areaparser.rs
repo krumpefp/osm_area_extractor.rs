@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::spawn;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use osmpbfreader::{OsmObj, OsmPbfReader, Tags};
+use osmpbfreader::OsmPbfReader;
 
 use crate::parsers::{Area, AreaFactory};
 use crate::prelude::*;
@@ -99,7 +99,7 @@ where
 }
 
 fn import_nodes(ids: &HashSet<NodeId>, osmreader: &mut OsmPbfReader<File>) -> Vec<Node> {
-    osmreader.rewind();
+    osmreader.rewind().expect("Could not reset pbf file!");
 
     osmreader
         .par_iter()
@@ -130,7 +130,7 @@ fn import_ways(
     osmreader: &mut OsmPbfReader<File>,
     node_id_sender: &Sender<NodeId>,
 ) -> Vec<Segment> {
-    osmreader.rewind();
+    osmreader.rewind().expect("Could not reset pbf file!");
 
     osmreader
         .par_iter()
@@ -146,7 +146,9 @@ fn import_ways(
         .filter_map(|obj| {
             if let Some(way) = obj.1.way() {
                 for nid in &way.nodes {
-                    node_id_sender.send(*nid);
+                    node_id_sender
+                        .send(*nid)
+                        .expect("Could not send node id when importing ways");
                 }
                 return Some(Segment {
                     osmid: way.id,

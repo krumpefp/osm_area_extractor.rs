@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-use std::fs::File;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::time::{Duration, Instant};
+use std::sync::mpsc::Sender;
+use std::time::Instant;
 
 use osmpbfreader;
 use osmpbfreader::{Relation, Tags};
@@ -43,11 +41,13 @@ impl parsers::Area for AdminArea {
     }
 }
 
-struct AdminAreaFactory {}
+struct AdminAreaFactory {
+    max_lvl: AdminLevel,
+}
 
 impl AdminAreaFactory {
-    pub fn new() -> Self {
-        AdminAreaFactory {}
+    pub fn new(max_lvl: AdminLevel) -> Self {
+        AdminAreaFactory { max_lvl }
     }
 }
 
@@ -84,6 +84,10 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
                 return None;
             }
         };
+        if level > self.max_lvl {
+            return None;
+        }
+
         let name = match rel.tags.get("name") {
             Some(name) => name,
             None => {
@@ -128,8 +132,8 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
     }
 }
 
-pub fn import_admin_areas(path: &String) {
-    let mut factory = AdminAreaFactory::new();
+pub fn import_admin_areas(path: &String, max_lvl: AdminLevel) {
+    let mut factory = AdminAreaFactory::new(max_lvl);
 
     let now = Instant::now();
     let (areas, segments, nodes) = parsers::import_areas(&path, &mut factory);
@@ -148,10 +152,4 @@ pub fn import_admin_areas(path: &String) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn benchmark_stuttgart() {
-        import_admin_areas(&"resources/pbfs/stuttgart-regbez-latest.osm.pbf".to_string());
-    }
-}
+mod tests {}

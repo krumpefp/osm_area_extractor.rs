@@ -2,24 +2,24 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::spawn;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
-use osmpbfreader::{OsmObj, OsmPbfReader, Tags};
+use osmpbfreader::OsmPbfReader;
 
-use crate::parsers::AreaFactory;
-use crate::parsers::{Node, Segment};
-use crate::{NodeId, SegmentId};
+use crate::parsers::{Area, AreaFactory};
+use crate::prelude::*;
 
-pub(crate) fn import_areas<Factory>(
+pub(crate) fn import_areas<AreaType, Factory>(
     path: &String,
     area_factory: &mut Factory,
 ) -> (
-    Vec<Factory::Area>,
+    HashMap<AreaId, AreaType>,
     HashMap<SegmentId, Segment>,
     HashMap<NodeId, Node>,
 )
 where
-    Factory: AreaFactory,
+    AreaType: Area,
+    Factory: AreaFactory<AreaType>,
 {
     let file = File::open(&path).expect("Could not open input file! Exiting!");
 
@@ -32,19 +32,23 @@ where
     let outer_id_set_receiver = collect_ids(outer_id_receiver);
 
     let t1 = Instant::now();
-    let areas: Vec<Factory::Area> = reader
-        .par_iter()
-        .filter_map(|obj| obj.ok())
-        .filter(|obj| obj.is_relation())
-        .filter(|obj| area_factory.is_valid(obj.tags()))
-        .filter_map(|obj| {
-            if let Some(area) = obj.relation() {
-                return area_factory.to_area(area, &inner_id_sender, &outer_id_sender);
-            }
-            None
-        })
-        .collect();
+    let mut areas = HashMap::new();
+    areas.extend(
+        reader
+            .par_iter()
+            .filter_map(|obj| obj.ok())
+            .filter(|obj| obj.is_relation())
+            .filter(|obj| area_factory.is_valid(obj.tags()))
+            .filter_map(|obj| {
+                if let Some(area) = obj.relation() {
+                    return area_factory.to_area(area, &inner_id_sender, &outer_id_sender);
+                }
+                None
+            })
+            .map(|obj| (obj.get_id(), obj)),
+    );
     let t2 = Instant::now();
+    let areas = areas;
 
     let (node_id_sender, node_id_receiver) = channel();
     let node_id_set_receiver = collect_ids(node_id_receiver);
@@ -95,7 +99,7 @@ where
 }
 
 fn import_nodes(ids: &HashSet<NodeId>, osmreader: &mut OsmPbfReader<File>) -> Vec<Node> {
-    osmreader.rewind();
+    osmreader.rewind().expect("Could not reset pbf file!");
 
     osmreader
         .par_iter()
@@ -126,7 +130,7 @@ fn import_ways(
     osmreader: &mut OsmPbfReader<File>,
     node_id_sender: &Sender<NodeId>,
 ) -> Vec<Segment> {
-    osmreader.rewind();
+    osmreader.rewind().expect("Could not reset pbf file!");
 
     osmreader
         .par_iter()
@@ -142,7 +146,9 @@ fn import_ways(
         .filter_map(|obj| {
             if let Some(way) = obj.1.way() {
                 for nid in &way.nodes {
-                    node_id_sender.send(*nid);
+                    node_id_sender
+                        .send(*nid)
+                        .expect("Could not send node id when importing ways");
                 }
                 return Some(Segment {
                     osmid: way.id,

@@ -1,16 +1,22 @@
-use std::collections::HashMap;
-use std::fs::File;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::time::{Duration, Instant};
+use std::sync::mpsc::Sender;
+use std::time::Instant;
 
 use osmpbfreader;
 use osmpbfreader::{Relation, Tags};
 
+mod filter;
 mod parsers;
 
-pub use parsers::{AdminLevel, Latitude, Longitude};
-pub use parsers::{AreaId, NodeId, SegmentId};
-pub use parsers::{Node, Segment};
+mod prelude {
+    pub use crate::parsers::{AdminLevel, Latitude, Longitude};
+    pub use crate::parsers::{AreaId, NodeId, SegmentId};
+    pub use crate::parsers::{Node, Segment};
+
+    pub use crate::parsers::Area;
+    pub use crate::AdminArea;
+}
+
+use prelude::*;
 
 pub struct AdminArea {
     pub osmid: AreaId,
@@ -21,25 +27,31 @@ pub struct AdminArea {
     pub outer: Vec<SegmentId>,
 }
 
-struct AdminAreaFactory {
-    areas: Vec<AdminArea>,
-    segments: HashMap<SegmentId, Segment>,
-    nodes: HashMap<NodeId, Node>,
-}
+impl parsers::Area for AdminArea {
+    fn get_id(&self) -> AreaId {
+        self.osmid
+    }
 
-impl AdminAreaFactory {
-    fn new() -> Self {
-        AdminAreaFactory {
-            areas: Vec::new(),
-            segments: HashMap::new(),
-            nodes: HashMap::new(),
-        }
+    fn get_inner(&self) -> &Vec<SegmentId> {
+        &self.inner
+    }
+
+    fn get_outer(&self) -> &Vec<SegmentId> {
+        &self.outer
     }
 }
 
-impl parsers::AreaFactory for AdminAreaFactory {
-    type Area = AdminArea;
+struct AdminAreaFactory {
+    max_lvl: AdminLevel,
+}
 
+impl AdminAreaFactory {
+    pub fn new(max_lvl: AdminLevel) -> Self {
+        AdminAreaFactory { max_lvl }
+    }
+}
+
+impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
     fn is_valid(&self, tags: &Tags) -> bool {
         return tags.contains("boundary", "administrative")
             && tags.get("name").is_some()
@@ -72,6 +84,10 @@ impl parsers::AreaFactory for AdminAreaFactory {
                 return None;
             }
         };
+        if level > self.max_lvl {
+            return None;
+        }
+
         let name = match rel.tags.get("name") {
             Some(name) => name,
             None => {
@@ -114,80 +130,26 @@ impl parsers::AreaFactory for AdminAreaFactory {
             outer: Vec::new(),
         })
     }
-
-    fn set_segments(&mut self, segments: Vec<Segment>, nodes: Vec<Node>) {
-        // TODO: remove clone
-        self.segments
-            .extend(segments.into_iter().map(|seg| (seg.osmid, seg)));
-        self.nodes
-            .extend(nodes.into_iter().map(|node| (node.osmid, node)));
-    }
 }
 
-pub fn import_admin_areas(path: &String) {
-    let mut factory = AdminAreaFactory::new();
+pub fn import_admin_areas(path: &String, max_lvl: AdminLevel) {
+    let mut factory = AdminAreaFactory::new(max_lvl);
 
     let now = Instant::now();
-    parsers::import_areas(&path, &mut factory);
+    let (areas, segments, nodes) = parsers::import_areas(&path, &mut factory);
     let runtime = now.elapsed();
 
     println!(
         "Imported {} areas, {} segments and {} nodes in {:?}",
-        factory.areas.len(),
-        factory.segments.len(),
-        factory.nodes.len(),
+        areas.len(),
+        segments.len(),
+        nodes.len(),
         runtime
     );
-}
 
-fn admin_obj(obj: &osmpbfreader::OsmObj) -> Option<&osmpbfreader::Relation> {
-    // get relations with tags[boundary] == administrative
-    let tags = obj.tags();
-    if tags.contains("boundary", "administrative")
-        && tags.get("name").is_some()
-        && tags.get("admin_level").is_some()
-    {
-        return obj.relation();
-    } else {
-        return None;
-    }
-}
-
-pub fn read_pbf(pbf_path: &String) {
-    let f = File::open(pbf_path).unwrap();
-
-    let mut pbf = osmpbfreader::OsmPbfReader::new(f);
-
-    let (t_chan_inner, r_chan_inner) = channel();
-    let (t_chan_outer, r_chan_outer) = channel();
-
-    for obj in pbf.par_iter().map(Result::unwrap) {
-        let rel = match admin_obj(&obj) {
-            Some(rel) => rel,
-            None => continue,
-        };
-
-        for r in &rel.refs {
-            match r.role.as_str() {
-                "inner" => t_chan_inner.send(r.member).unwrap(),
-                "outer" => t_chan_outer.send(r.member).unwrap(),
-                _ => eprintln!("Ignoring reference with role {}", r.role),
-            }
-        }
-    }
-
-    let inner_ids = vec![r_chan_inner];
-    let outer_ids = vec![r_chan_outer];
-
-    dbg!(inner_ids);
-    dbg!(outer_ids);
+    let complete_areas = filter::filter_complete(&areas, &segments, &nodes);
+    println!("Complete areas are: {} many", complete_areas.len());
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn benchmark_stuttgart() {
-        import_admin_areas(&"resources/pbfs/stuttgart-regbez-latest.osm.pbf".to_string());
-    }
-}
+mod tests {}

@@ -11,3 +11,4 @@ path = "src/lib.rs"
 [dependencies]
 osmpbfreader = "0.12.0"
 rayon = "1.0.3"
+clap = "2.32.0"

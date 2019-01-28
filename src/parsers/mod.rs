@@ -27,9 +27,15 @@ pub struct Segment {
     pub nodes: Vec<NodeId>,
 }
 
-pub(crate) trait AreaFactory {
-    type Area;
+pub trait Area {
+    fn get_id(&self) -> AreaId;
 
+    fn get_inner(&self) -> &Vec<SegmentId>;
+
+    fn get_outer(&self) -> &Vec<SegmentId>;
+}
+
+pub(crate) trait AreaFactory<AreaType: Area> {
     ///
     /// Check for a given tag set of a relation if it is a valid area
     /// description
@@ -47,11 +53,5 @@ pub(crate) trait AreaFactory {
         rel: &Relation,
         inner_id_sender: &Sender<SegmentId>,
         outer_id_sender: &Sender<SegmentId>,
-    ) -> Option<Self::Area>;
-
-    ///
-    /// Set the segments and their referenced nodes which where imported from
-    /// the pbf file.
-    ///
-    fn set_segments(&mut self, segments: Vec<Segment>, nodes: Vec<Node>);
+    ) -> Option<AreaType>;
 }

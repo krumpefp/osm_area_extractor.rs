@@ -6,20 +6,20 @@ use std::time::{Duration, Instant};
 
 use osmpbfreader::{OsmObj, OsmPbfReader, Tags};
 
-use crate::parsers::AreaFactory;
-use crate::parsers::{Node, Segment};
-use crate::{NodeId, SegmentId};
+use crate::parsers::{Area, AreaFactory};
+use crate::prelude::*;
 
-pub(crate) fn import_areas<Factory>(
+pub(crate) fn import_areas<AreaType, Factory>(
     path: &String,
     area_factory: &mut Factory,
 ) -> (
-    Vec<Factory::Area>,
+    HashMap<AreaId, AreaType>,
     HashMap<SegmentId, Segment>,
     HashMap<NodeId, Node>,
 )
 where
-    Factory: AreaFactory,
+    AreaType: Area,
+    Factory: AreaFactory<AreaType>,
 {
     let file = File::open(&path).expect("Could not open input file! Exiting!");
 
@@ -32,19 +32,23 @@ where
     let outer_id_set_receiver = collect_ids(outer_id_receiver);
 
     let t1 = Instant::now();
-    let areas: Vec<Factory::Area> = reader
-        .par_iter()
-        .filter_map(|obj| obj.ok())
-        .filter(|obj| obj.is_relation())
-        .filter(|obj| area_factory.is_valid(obj.tags()))
-        .filter_map(|obj| {
-            if let Some(area) = obj.relation() {
-                return area_factory.to_area(area, &inner_id_sender, &outer_id_sender);
-            }
-            None
-        })
-        .collect();
+    let mut areas = HashMap::new();
+    areas.extend(
+        reader
+            .par_iter()
+            .filter_map(|obj| obj.ok())
+            .filter(|obj| obj.is_relation())
+            .filter(|obj| area_factory.is_valid(obj.tags()))
+            .filter_map(|obj| {
+                if let Some(area) = obj.relation() {
+                    return area_factory.to_area(area, &inner_id_sender, &outer_id_sender);
+                }
+                None
+            })
+            .map(|obj| (obj.get_id(), obj)),
+    );
     let t2 = Instant::now();
+    let areas = areas;
 
     let (node_id_sender, node_id_receiver) = channel();
     let node_id_set_receiver = collect_ids(node_id_receiver);

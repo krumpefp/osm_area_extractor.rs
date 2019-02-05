@@ -5,6 +5,7 @@ use osmpbfreader;
 use osmpbfreader::{Relation, Tags};
 
 mod filter;
+mod output;
 mod parsers;
 
 mod prelude {
@@ -104,7 +105,7 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
                 "inner" => match r.member {
                     osmpbfreader::OsmId::Way(oid) => {
                         inner_id_sender.send(oid).unwrap();
-                        inner.push(r.member);
+                        inner.push(oid);
                     }
                     _ => {
                         eprintln!("Inner relation id is not a WayId in area {}", osmid.0);
@@ -113,7 +114,7 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
                 "outer" => match r.member {
                     osmpbfreader::OsmId::Way(oid) => {
                         outer_id_sender.send(oid).unwrap();
-                        outer.push(r.member);
+                        outer.push(oid);
                     }
                     _ => eprintln!("Inner relation id is not a WayId in area {}", osmid.0),
                 },
@@ -126,8 +127,8 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
             level: level,
             name: name.clone(),
 
-            inner: Vec::new(),
-            outer: Vec::new(),
+            inner: inner,
+            outer: outer,
         })
     }
 }
@@ -149,6 +150,15 @@ pub fn import_admin_areas(path: &String, max_lvl: AdminLevel) {
 
     let complete_areas = filter::filter_complete(&areas, &segments, &nodes);
     println!("Complete areas are: {} many", complete_areas.len());
+
+    output::to_file_with_deps(
+        &"export.tmp".to_string(),
+        &complete_areas,
+        &areas,
+        &segments,
+        &nodes,
+    )
+    .expect("Something went wrong when exporting to file!");
 }
 
 #[cfg(test)]

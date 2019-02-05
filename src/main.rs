@@ -31,8 +31,8 @@ fn create_cli_interface<'a>() -> App<'a, 'a> {
         )
         .arg(
             Arg::with_name("max_admin_lvl")
-            .short("mx")
-            .long("max_lvl")
+            .short("l")
+            .long("lvl")
             .value_name("UNSIGNED")
             .help("Maximum administrative level to extract according to https://wiki.openstreetmap.org/wiki/Tag%3aboundary=administrative. Default = 4 (region level 'state-district')")
             .takes_value(true)

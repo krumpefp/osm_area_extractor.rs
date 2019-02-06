@@ -49,9 +49,11 @@ pub fn to_file_with_deps(
             area.outer.len(),
             area.inner.len()
         );
-        let seg_list: Vec<String> = area.outer.iter().map(|s_id| s_id.0.to_string()).collect();
-        let seg_str = seg_list.join(",");
-        writeln!(&mut writer, "{}", seg_str);
+        if area.outer.len() > 0 {
+            let seg_list: Vec<String> = area.outer.iter().map(|s_id| s_id.0.to_string()).collect();
+            let seg_str = seg_list.join(",");
+            writeln!(&mut writer, "{}", seg_str);
+        }
         if area.inner.len() > 0 {
             let seg_list: Vec<String> = area.inner.iter().map(|s_id| s_id.0.to_string()).collect();
             let seg_str = seg_list.join(",");

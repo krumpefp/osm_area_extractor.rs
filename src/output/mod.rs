@@ -12,6 +12,7 @@ pub fn to_file_with_deps(
     areas: &HashMap<AreaId, AdminArea>,
     segs: &HashMap<SegmentId, Segment>,
     nodes: &HashMap<NodeId, Node>,
+    projection: &Fn(&Latitude, &Longitude) -> (Latitude, Longitude),
 ) -> Result<(), ()> {
     let mut writer =
         BufWriter::new(File::create(path.as_str()).expect("Could not open output file!"));
@@ -24,7 +25,8 @@ pub fn to_file_with_deps(
     writeln!(&mut writer, "Nodecount:{}", node_ids.len());
     for n_id in node_ids {
         let node = &nodes[&n_id];
-        writeln!(&mut writer, "{}:{},{};", node.osmid.0, node.lat, node.lon);
+        let prj = projection(&node.lat, &node.lon);
+        writeln!(&mut writer, "{}:{},{};", node.osmid.0, prj.0, prj.1);
     }
 
     // write the segments

@@ -55,7 +55,7 @@ impl AdminAreaFactory {
 impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
     fn is_valid(&self, tags: &Tags) -> bool {
         return tags.contains("boundary", "administrative")
-            && tags.get("name").is_some()
+            && (tags.get("name").is_some() || tags.get("name:en").is_some())
             && tags.get("admin_level").is_some();
     }
 
@@ -89,11 +89,14 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
             return None;
         }
 
-        let name = match rel.tags.get("name") {
+        let name = match rel.tags.get("name:en") {
             Some(name) => name,
             None => {
-                eprintln!("Could not get name of admin area {}", osmid.0);
-                return None;
+                // if no english name could be found, take the general name ...
+                match rel.tags.get("name") {
+                    Some(name) => name,
+                    None => return None,
+                }
             }
         };
 

@@ -55,7 +55,7 @@ impl AdminAreaFactory {
 impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
     fn is_valid(&self, tags: &Tags) -> bool {
         return tags.contains("boundary", "administrative")
-            && (tags.get("name").is_some() || tags.get("name-en").is_some())
+            && (tags.get("name").is_some() || tags.get("name:en").is_some())
             && tags.get("admin_level").is_some();
     }
 

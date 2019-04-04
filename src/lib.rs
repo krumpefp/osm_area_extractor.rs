@@ -106,7 +106,7 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
             return None;
         }
 
-        let name = match rel.tags.get("name-en") {
+        let name = match rel.tags.get("name:en") {
             Some(name) => name,
             None => {
                 // if no english name could be found, take the general name ...

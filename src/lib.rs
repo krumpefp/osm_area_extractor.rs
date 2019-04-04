@@ -54,9 +54,23 @@ impl AdminAreaFactory {
 
 impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
     fn is_valid(&self, tags: &Tags) -> bool {
-        return tags.contains("boundary", "administrative")
-            && (tags.get("name").is_some() || tags.get("name:en").is_some())
-            && tags.get("admin_level").is_some();
+        if !tags.contains("type", "boundary") {
+            return false;
+        }
+        if tags.get("name:en").is_none() && tags.get("name").is_none() {
+            return false;
+        }
+        let admin_lvl = match tags.get("admin_level") {
+            Some(val) => match val.parse::<u8>() {
+                Ok(lvl) => lvl,
+                Err(err) => {
+                    eprintln!("Could not parse admin level value of area:\n{}", err);
+                    return false;
+                }
+            },
+            None => return false,
+        };
+        admin_lvl <= self.max_lvl
     }
 
     fn to_area(

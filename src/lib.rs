@@ -57,6 +57,9 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
         if !tags.contains("type", "boundary") {
             return false;
         }
+        if !tags.contains("boundary", "administrative") {
+            return false;
+        }
         if tags.get("name:en").is_none() && tags.get("name").is_none() {
             return false;
         }
@@ -79,7 +82,7 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
         inner_id_sender: &Sender<SegmentId>,
         outer_id_sender: &Sender<SegmentId>,
     ) -> Option<AdminArea> {
-        assert!(self.is_valid(&rel.tags));
+        debug_assert!(self.is_valid(&rel.tags));
 
         let osmid = rel.id;
         // TODO: Improve error handling

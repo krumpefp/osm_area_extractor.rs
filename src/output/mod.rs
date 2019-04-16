@@ -7,15 +7,14 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 
 pub fn to_file_with_deps(
-    path: &String,
-    area_ids: &Vec<AreaId>,
+    path: &str,
+    area_ids: &[AreaId],
     areas: &HashMap<AreaId, AdminArea>,
     segs: &HashMap<SegmentId, Segment>,
     nodes: &HashMap<NodeId, Node>,
-    projection: &Fn(&Latitude, &Longitude) -> (Latitude, Longitude),
+    projection: &Fn(Latitude, Longitude) -> (Latitude, Longitude),
 ) -> Result<(), ()> {
-    let mut writer =
-        BufWriter::new(File::create(path.as_str()).expect("Could not open output file!"));
+    let mut writer = BufWriter::new(File::create(path).expect("Could not open output file!"));
 
     // collect the nodes and segment ids we need to write
     let (node_ids, seg_ids) =
@@ -25,7 +24,7 @@ pub fn to_file_with_deps(
     writeln!(&mut writer, "Nodecount:{}", node_ids.len()).expect("Could not write to output file!");
     for n_id in node_ids {
         let node = &nodes[&n_id];
-        let prj = projection(&node.lat, &node.lon);
+        let prj = projection(node.lat, node.lon);
         writeln!(&mut writer, "{}:{},{};", node.osmid.0, prj.0, prj.1)
             .expect("Could not write to output file!");
     }
@@ -55,12 +54,12 @@ pub fn to_file_with_deps(
             area.inner.len()
         )
         .expect("Could not write to output file!");
-        if area.outer.len() > 0 {
+        if !area.outer.is_empty() {
             let seg_list: Vec<String> = area.outer.iter().map(|s_id| s_id.0.to_string()).collect();
             let seg_str = seg_list.join(",");
             writeln!(&mut writer, "{}", seg_str).expect("Could not write to output file!");
         }
-        if area.inner.len() > 0 {
+        if !area.inner.is_empty() {
             let seg_list: Vec<String> = area.inner.iter().map(|s_id| s_id.0.to_string()).collect();
             let seg_str = seg_list.join(",");
             writeln!(&mut writer, "{}", seg_str).expect("Could not write to output file!");
@@ -71,7 +70,7 @@ pub fn to_file_with_deps(
 }
 
 fn nodes_segs_to_write(
-    area_ids: &Vec<AreaId>,
+    area_ids: &[AreaId],
     areas: &HashMap<AreaId, AdminArea>,
     segs: &HashMap<SegmentId, Segment>,
 ) -> Result<(HashSet<NodeId>, HashSet<SegmentId>), String> {

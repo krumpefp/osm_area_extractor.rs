@@ -24,12 +24,12 @@ pub fn filter_complete(
     areas
         .into_par_iter()
         .filter_map(|obj| {
-            for s_id in obj.1.get_inner().into_iter() {
+            for s_id in obj.1.get_inner().iter() {
                 if !filtered_segs.contains(s_id) {
                     return None;
                 }
             }
-            for s_id in obj.1.get_outer().into_iter() {
+            for s_id in obj.1.get_outer().iter() {
                 if !filtered_segs.contains(s_id) {
                     return None;
                 }

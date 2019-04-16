@@ -10,7 +10,7 @@ use crate::parsers::{Area, AreaFactory};
 use crate::prelude::*;
 
 pub(crate) fn import_areas<AreaType, Factory>(
-    path: &String,
+    path: &str,
     area_factory: &mut Factory,
 ) -> (
     HashMap<AreaId, AreaType>,
@@ -36,8 +36,8 @@ where
     areas.extend(
         reader
             .par_iter()
-            .filter_map(|obj| obj.ok())
-            .filter(|obj| obj.is_relation())
+            .filter_map(std::result::Result::ok)
+            .filter(osmpbfreader::objects::OsmObj::is_relation)
             .filter(|obj| area_factory.is_valid(obj.tags()))
             .filter_map(|obj| {
                 if let Some(area) = obj.relation() {
@@ -103,8 +103,8 @@ fn import_nodes(ids: &HashSet<NodeId>, osmreader: &mut OsmPbfReader<File>) -> Ve
 
     osmreader
         .par_iter()
-        .filter_map(|obj| obj.ok())
-        .filter(|obj| obj.is_node())
+        .filter_map(std::result::Result::ok)
+        .filter(osmpbfreader::OsmObj::is_node)
         .filter_map(|obj| {
             if let osmpbfreader::OsmId::Node(id) = obj.id() {
                 return Some((id, obj));
@@ -134,8 +134,8 @@ fn import_ways(
 
     osmreader
         .par_iter()
-        .filter_map(|obj| obj.ok())
-        .filter(|obj| obj.is_way())
+        .filter_map(std::result::Result::ok)
+        .filter(osmpbfreader::OsmObj::is_way)
         .filter_map(|obj| {
             if let osmpbfreader::OsmId::Way(id) = obj.id() {
                 return Some((id, obj));

@@ -143,24 +143,24 @@ impl parsers::AreaFactory<AdminArea> for AdminAreaFactory {
         }
 
         Some(AdminArea {
-            osmid: osmid,
-            level: level,
+            osmid,
+            level,
             name: name.clone(),
 
-            inner: inner,
-            outer: outer,
+            inner,
+            outer,
         })
     }
 }
 
-fn mercator(lat: &Latitude, lon: &Longitude) -> (Latitude, Longitude) {
-    let _cntr_lat = 511633750;
+fn mercator(lat: Latitude, lon: Longitude) -> (Latitude, Longitude) {
+    let _cntr_lat = 511_633_750;
     let cntr_lon = 0; //104476830;
-    let scaling = 10000000_f64;
+    let scaling = 10_000_000_f64;
 
     // project according to: http://mathworld.wolfram.com/MercatorProjection.html
     let x = lon - cntr_lon;
-    let lat_dec = (*lat as f64) / scaling;
+    let lat_dec = f64::from(lat) / scaling;
     let lat_rad = lat_dec.to_radians();
     let y = lat_rad.sin().atanh().to_degrees();
     let lat_prj = (y * scaling) as Latitude;
@@ -168,7 +168,7 @@ fn mercator(lat: &Latitude, lon: &Longitude) -> (Latitude, Longitude) {
     (lat_prj, lon_prj)
 }
 
-pub fn import_admin_areas(path: &String, max_lvl: AdminLevel) {
+pub fn import_admin_areas(path: &str, max_lvl: AdminLevel) {
     let mut factory = AdminAreaFactory::new(max_lvl);
 
     let now = Instant::now();
